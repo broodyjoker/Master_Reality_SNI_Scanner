@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Master SNI Scanner - Auto Installer v2.0.0
+Master SNI Scanner - Auto Installer v2.0.1
 Detects OS and installs all dependencies for both Server and Client
 """
 
@@ -11,7 +11,10 @@ import platform
 import shutil
 import time
 
-# Colors
+# ============================================================================
+# SECTION 1: COLOR SETUP - Terminal color configuration
+# ============================================================================
+
 GREEN = '\033[92m'
 RED = '\033[91m'
 YELLOW = '\033[93m'
@@ -33,17 +36,27 @@ def print_error(msg): print(f"{RED}[✗]{RESET} {msg}")
 def print_warning(msg): print(f"{YELLOW}[!]{RESET} {msg}")
 
 
+# ============================================================================
+# SECTION 2: UI HELPERS - Display utilities
+# ============================================================================
+
 def print_banner_logo():
+    """Display the installer banner at startup"""
     print(f"""
 {MAGENTA}
 ╔══════════════════════════════════════════════════════════════════╗
-║     Master SNI Scanner v2.0.0 - Auto Installer                  ║
+║     Master SNI Scanner v2.0.1 - Auto Installer                  ║
 ║     Detect OS | Install Dependencies | Setup Complete           ║
 ╚══════════════════════════════════════════════════════════════════╝
 {RESET}""")
 
 
+# ============================================================================
+# SECTION 3: SYSTEM DETECTION - Detect OS and package manager
+# ============================================================================
+
 def detect_os():
+    """Detect the operating system"""
     system = platform.system().lower()
     if system == 'windows':
         return 'windows'
@@ -56,6 +69,7 @@ def detect_os():
 
 
 def get_package_manager():
+    """Detect the Linux package manager"""
     if shutil.which('apt-get'):
         return 'apt'
     elif shutil.which('yum'):
@@ -70,7 +84,12 @@ def get_package_manager():
         return None
 
 
+# ============================================================================
+# SECTION 4: DEPENDENCY CHECKING - Check installed packages
+# ============================================================================
+
 def check_xray_installed():
+    """Check if Xray-core is installed on the system"""
     xray_paths = ['/usr/local/bin/xray', '/usr/bin/xray']
     for path in xray_paths:
         if os.path.exists(path):
@@ -81,6 +100,7 @@ def check_xray_installed():
 
 
 def check_python_package(package_name):
+    """Check if a Python package is installed"""
     try:
         __import__(package_name)
         return True
@@ -88,20 +108,8 @@ def check_python_package(package_name):
         return False
 
 
-def check_script_files():
-    """Check if server.py and client.py exist"""
-    scripts = ['server.py', 'client.py']
-    missing = []
-    for script in scripts:
-        if os.path.exists(script):
-            print_success(f"{script} found")
-        else:
-            print_warning(f"{script} not found")
-            missing.append(script)
-    return missing
-
-
 def check_requirements():
+    """Check all system requirements and return status"""
     requirements = {
         'python3': {'status': False, 'version': None},
         'pip': {'status': False},
@@ -128,7 +136,12 @@ def check_requirements():
     return requirements
 
 
+# ============================================================================
+# SECTION 5: STATUS DISPLAY - Show installation status
+# ============================================================================
+
 def print_status_table(requirements):
+    """Print requirements status in a formatted table"""
     headers = ["Requirement", "Status", "Details"]
     rows = []
 
@@ -167,7 +180,12 @@ def print_status_table(requirements):
     print(f"{CYAN}{'─' * total_width}{RESET}")
 
 
+# ============================================================================
+# SECTION 6: INSTALLATION FUNCTIONS - Platform-specific installers
+# ============================================================================
+
 def install_on_windows():
+    """Install dependencies on Windows"""
     print_info("Installing on Windows...")
 
     if not shutil.which('python'):
@@ -194,6 +212,7 @@ def install_on_windows():
 
 
 def install_on_linux():
+    """Install dependencies on Linux"""
     print_info("Installing on Linux...")
 
     pm = get_package_manager()
@@ -235,6 +254,7 @@ def install_on_linux():
 
 
 def install_on_macos():
+    """Install dependencies on macOS"""
     print_info("Installing on macOS...")
 
     if not shutil.which('brew'):
@@ -266,43 +286,15 @@ def install_on_macos():
     return True
 
 
-def create_launcher_scripts():
-    print_info("Creating launcher scripts...")
-
-    if platform.system().lower() == 'windows':
-        with open('run_server.bat', 'w') as f:
-            f.write('@echo off\n')
-            f.write('echo Starting Master SNI Scanner Server...\n')
-            f.write('python server.py\n')
-            f.write('pause\n')
-
-        with open('run_client.bat', 'w') as f:
-            f.write('@echo off\n')
-            f.write('echo Starting Master SNI Scanner Client...\n')
-            f.write('python client.py\n')
-            f.write('pause\n')
-
-        print_success("Created: run_server.bat, run_client.bat")
-    else:
-        with open('run_server.sh', 'w') as f:
-            f.write('#!/bin/bash\n')
-            f.write('echo "Starting Master SNI Scanner Server..."\n')
-            f.write('sudo python3 server.py\n')
-        os.chmod('run_server.sh', 0o755)
-
-        with open('run_client.sh', 'w') as f:
-            f.write('#!/bin/bash\n')
-            f.write('echo "Starting Master SNI Scanner Client..."\n')
-            f.write('python3 client.py "$@"\n')
-        os.chmod('run_client.sh', 0o755)
-
-        print_success("Created: run_server.sh, run_client.sh")
-
+# ============================================================================
+# SECTION 7: FILE CREATION - Generate required files
+# ============================================================================
 
 def create_requirements_file():
+    """Create requirements.txt file if it doesn't exist"""
     if not os.path.exists('requirements.txt'):
         with open('requirements.txt', 'w') as f:
-            f.write('# Master SNI Scanner v2.0.0\n')
+            f.write('# Master SNI Scanner v2.0.1\n')
             f.write('requests>=2.31.0\n')
             f.write('cryptography>=41.0.0\n')
         print_success("Created: requirements.txt")
@@ -310,7 +302,12 @@ def create_requirements_file():
         print_success("requirements.txt already exists")
 
 
+# ============================================================================
+# SECTION 8: MAIN - Main execution flow
+# ============================================================================
+
 def main():
+    """Main installer execution flow"""
     print_banner_logo()
 
     os_name = detect_os()
@@ -319,14 +316,6 @@ def main():
     if os_name == 'unknown':
         print_error("Unsupported operating system!")
         sys.exit(1)
-
-    # Check script files
-    print_info("\nChecking script files...")
-    missing_scripts = check_script_files()
-
-    if missing_scripts:
-        print_warning(f"Missing scripts: {', '.join(missing_scripts)}")
-        print_warning("Please ensure server.py and client.py are in the same directory")
 
     # Check requirements
     requirements = check_requirements()
@@ -338,12 +327,11 @@ def main():
         print_success("\nAll requirements are already installed!")
         answer = input(f"\n{YELLOW}Reinstall anyway? (y/n): {RESET}").strip().lower()
         if answer != 'y':
-            create_launcher_scripts()
             create_requirements_file()
             print(f"\n{GREEN}{'=' * 60}{RESET}")
             print_success("Setup complete!")
-            print(f"  Server: {CYAN}sudo python3 server.py{RESET}")
-            print(f"  Client: {CYAN}python3 client.py{RESET}")
+            print(f"  Server: {CYAN}sudo python3 server-sniScanner.py{RESET}")
+            print(f"  Client: {CYAN}python3 client-sniScanner.py{RESET}")
             print(f"{GREEN}{'=' * 60}{RESET}")
             sys.exit(0)
 
@@ -361,7 +349,6 @@ def main():
         print_error("Installation failed!")
         sys.exit(1)
 
-    create_launcher_scripts()
     create_requirements_file()
 
     final_check = check_requirements()
@@ -374,12 +361,9 @@ def main():
     else:
         print_success("All requirements installed successfully!")
 
-    if missing_scripts:
-        print_warning(f"Scripts not found: {', '.join(missing_scripts)}")
-
     print(f"\n{YELLOW}How to use:{RESET}")
-    print(f"  Server: {CYAN}sudo python3 server.py{RESET}")
-    print(f"  Client: {CYAN}python3 client.py{RESET}")
+    print(f"  Server: {CYAN}sudo python3 server-sniScanner.py{RESET}")
+    print(f"  Client: {CYAN}python3 client-sniScanner.py{RESET}")
     print(f"{GREEN}{'=' * 60}{RESET}")
 
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Master SNI Scanner v2.0.0 - SERVER MODE
+Master SNI Scanner v2.0.1 - SERVER MODE
 Professional Reality SNI Testing Tool
 """
 
@@ -15,7 +15,10 @@ import uuid
 import socket
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-# Colors
+# ============================================================================
+# SECTION 1: COLOR SETUP - Terminal color configuration
+# ============================================================================
+
 GREEN = '\033[92m'
 RED = '\033[91m'
 YELLOW = '\033[93m'
@@ -37,10 +40,19 @@ def print_error(msg): print(f"{RED}[✗]{RESET} {msg}")
 def print_warning(msg): print(f"{YELLOW}[!]{RESET} {msg}")
 
 
+# ============================================================================
+# SECTION 2: GLOBAL VARIABLES
+# ============================================================================
+
 server_instance = None
 
 
+# ============================================================================
+# SECTION 3: PORT MANAGEMENT - Check and free ports
+# ============================================================================
+
 def check_port_available(port):
+    """Check if a port is available for use"""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.settimeout(1)
         result = sock.connect_ex(('0.0.0.0', port))
@@ -48,6 +60,7 @@ def check_port_available(port):
 
 
 def free_port(port):
+    """Free a port by killing the process using it"""
     try:
         result = subprocess.run(f"lsof -ti:{port}", shell=True, capture_output=True, text=True)
         if result.stdout.strip():
@@ -61,6 +74,7 @@ def free_port(port):
 
 
 def get_available_port(default_port, try_range=10):
+    """Find an available port, trying a range if default is taken"""
     port = default_port
     for i in range(try_range):
         if check_port_available(port):
@@ -70,7 +84,12 @@ def get_available_port(default_port, try_range=10):
     return None
 
 
+# ============================================================================
+# SECTION 4: REQUIREMENTS & SYSTEM - Install dependencies and get system info
+# ============================================================================
+
 def install_requirements():
+    """Auto-install required Python packages and Xray-core"""
     print_info("Installing requirements...")
     subprocess.run(f'{sys.executable} -m pip install requests -q', shell=True, capture_output=True)
 
@@ -86,6 +105,7 @@ def install_requirements():
 
 
 def get_server_ip():
+    """Get the server's public IP address"""
     try:
         import urllib.request
         response = urllib.request.urlopen('https://api.ipify.org', timeout=5)
@@ -94,7 +114,12 @@ def get_server_ip():
         return None
 
 
+# ============================================================================
+# SECTION 5: KEY MANAGEMENT - Generate keys and UUID
+# ============================================================================
+
 def generate_keys():
+    """Generate x25519 keypair using xray x25519 command"""
     xray_path = '/usr/local/bin/xray'
     if not os.path.exists(xray_path):
         return None, None
@@ -127,10 +152,16 @@ def generate_keys():
 
 
 def generate_random_uuid():
+    """Generate a cryptographically secure random UUID v4"""
     return str(uuid.uuid4())
 
 
+# ============================================================================
+# SECTION 6: CONFIGURATION BUILDER - Create Xray server configs
+# ============================================================================
+
 def create_server_config(port, private_key, sni_batch, transport_name, server_uuid):
+    """Create Xray server configuration with specified transport"""
     transport_configs = {
         'tcp': {'network': 'tcp'},
         'websocket': {'network': 'ws', 'wsSettings': {'path': '/ws'}},
@@ -184,7 +215,12 @@ def create_server_config(port, private_key, sni_batch, transport_name, server_uu
     }
 
 
+# ============================================================================
+# SECTION 7: XRAY MANAGEMENT - Apply configs and manage Xray service
+# ============================================================================
+
 def apply_xray_config(config):
+    """Apply configuration to Xray and restart the service"""
     config_path = '/usr/local/etc/xray/config.json'
     try:
         with open(config_path, 'w') as f:
@@ -204,6 +240,7 @@ def apply_xray_config(config):
 
 
 def create_minimal_config():
+    """Create a minimal valid config to ensure Xray can start"""
     minimal_config = {
         "log": {"loglevel": "warning"},
         "inbounds": [],
@@ -223,11 +260,18 @@ def create_minimal_config():
     time.sleep(2)
 
 
+# ============================================================================
+# SECTION 8: HTTP API HANDLER - Handle client requests
+# ============================================================================
+
 class CustomHTTPRequestHandler(BaseHTTPRequestHandler):
+    """Custom HTTP handler for client API requests"""
+
     def log_message(self, format, *args):
         pass
 
     def do_GET(self):
+        """Handle GET requests - health check endpoint"""
         if self.path == '/health':
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
@@ -238,6 +282,7 @@ class CustomHTTPRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
     def do_POST(self):
+        """Handle POST requests - API endpoints for config and batch management"""
         global server_instance
 
         try:
@@ -250,6 +295,7 @@ class CustomHTTPRequestHandler(BaseHTTPRequestHandler):
             post_data = self.rfile.read(content_length)
             data = json.loads(post_data.decode())
 
+            # Endpoint: Receive SNI list from client and split into batches
             if self.path == '/api/send_config':
                 sni_list = data.get('sni_list', [])
                 transport = data.get('transport', 'tcp')
@@ -286,6 +332,7 @@ class CustomHTTPRequestHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps(response_data).encode())
 
+            # Endpoint: Apply a specific batch to Xray
             elif self.path == '/api/apply_batch':
                 sni_batch = data.get('sni_batch', [])
                 transport = data.get('transport', 'tcp')
@@ -324,7 +371,13 @@ class CustomHTTPRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
 
+# ============================================================================
+# SECTION 9: SERVER CLASS - Store server configuration
+# ============================================================================
+
 class Server:
+    """Server configuration container"""
+
     def __init__(self, port, api_port, private_key, public_key, server_ip, server_uuid):
         self.port = port
         self.api_port = api_port
@@ -334,29 +387,36 @@ class Server:
         self.server_uuid = server_uuid
 
 
+# ============================================================================
+# SECTION 10: SIGNAL HANDLER & MAIN - Main execution flow
+# ============================================================================
+
 def signal_handler(signum, frame):
+    """Handle Ctrl+C interrupt gracefully"""
     print_info("\nShutting down server...")
     sys.exit(0)
 
 
 def main():
+    """Main server execution flow"""
     global server_instance
 
     print(f"""
 {MAGENTA}
 ╔══════════════════════════════════════════════════════════════════╗
-║     Master SNI Scanner v2.0.0 - SERVER MODE                     ║
+║     Master SNI Scanner v2.0.1 - SERVER MODE                     ║
 ╚══════════════════════════════════════════════════════════════════╝
 {RESET}""")
 
     if os.geteuid() != 0:
-        print_error("Run with: sudo python3 server.py")
+        print_error("Run with: sudo python3 server-sniScanner.py")
         return
 
     install_requirements()
 
     print(f"\n{YELLOW}=== Configuration ==={RESET}")
 
+    # Get Reality port
     port_input = input(f"{CYAN}Reality port (default 443): {RESET}").strip()
     desired_port = int(port_input) if port_input.isdigit() else 443
 
@@ -372,6 +432,7 @@ def main():
     if port != desired_port:
         print_warning(f"Using port {port} instead of {desired_port}")
 
+    # Get API port
     api_input = input(f"{CYAN}API port (default 8080): {RESET}").strip()
     desired_api_port = int(api_input) if api_input.isdigit() else 8080
 
@@ -387,6 +448,7 @@ def main():
     if api_port != desired_api_port:
         print_warning(f"Using API port {api_port} instead of {desired_api_port}")
 
+    # Generate keys
     print_info("Generating keys...")
     private_key, public_key = generate_keys()
 
@@ -402,20 +464,25 @@ def main():
     print_success(f"Private Key: {private_key[:20]}...")
     print_success(f"Public Key: {public_key[:40]}...")
 
+    # Generate UUID
     server_uuid = generate_random_uuid()
     print_success(f"Server UUID: {server_uuid}")
 
+    # Get server IP
     server_ip = get_server_ip()
     if not server_ip:
         server_ip = input(f"{CYAN}Server IP: {RESET}").strip()
 
     print_success(f"Server IP: {server_ip}")
 
+    # Initialize Xray with minimal config
     create_minimal_config()
 
+    # Create server instance
     server_instance = Server(port, api_port, private_key, public_key, server_ip, server_uuid)
     signal.signal(signal.SIGINT, signal_handler)
 
+    # Start HTTP server
     http_server = HTTPServer(('0.0.0.0', api_port), CustomHTTPRequestHandler)
 
     print(f"\n{GREEN}{'=' * 60}{RESET}")
@@ -424,8 +491,8 @@ def main():
     print(f"  Reality: {CYAN}{server_ip}:{port}{RESET}")
     print(f"  API Port: {CYAN}{api_port}{RESET}")
     print(f"  UUID: {CYAN}{server_uuid}{RESET}")
-    print(f"\n{BLUE}Waiting for client on port {api_port}...{RESET}")
-    print(f"{YELLOW}python3 client.py --server {server_ip} --api-port {api_port}{RESET}\n")
+    print(f"\n{BLUE}Client command:{RESET}")
+    print(f"{YELLOW}python3 client-sniScanner.py --server {server_ip} --api-port {api_port}{RESET}")
 
     try:
         http_server.serve_forever()
