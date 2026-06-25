@@ -96,6 +96,10 @@ sudo python3 server-sniScanner.py
 # Start client (on testing machine)
 python3 client-sniScanner.py --server <SERVER_IP>
 ```
+> **💡 Windows Note:**  
+> On Windows, `python3` may not be recognized by default.  
+> The interpreter is often available as `py`, `python`, or `python.exe`.  
+> **Replace any `python3` command with the correct one on your system** (e.g., use `py` instead of `python3`).
 
 #### Manual Installation
 ```bash
